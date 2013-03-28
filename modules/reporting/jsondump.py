@@ -1,0 +1,25 @@
+# Copyright (C) 2010-2013 Cuckoo Sandbox Developers.
+# This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
+# See the file 'docs/LICENSE' for copying permission.
+
+import os
+import json
+import codecs
+
+from lib.dragon.common.abstracts import Report
+from lib.dragon.common.exceptions import CuckooReportError
+
+class JsonDump(Report):
+    """Saves analysis results in JSON format."""
+
+    def run(self, results):
+        """Writes report.
+        @param results: Cuckoo results dict.
+        @raise CuckooReportError: if fails to write report.
+        """
+        try:
+            report = codecs.open(os.path.join(self.reports_path, "report.json"), "w", "utf-8")
+            json.dump(results, report, sort_keys=False, indent=4)
+            report.close()
+        except (UnicodeError, TypeError, IOError) as e:
+            raise CuckooReportError("Failed to generate JSON report: %s" % e)

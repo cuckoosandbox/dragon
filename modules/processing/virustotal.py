@@ -1,0 +1,57 @@
+# Copyright (C) 2010-2013 Cuckoo Sandbox Developers.
+# This file is part of Cuckoo Sandbox - http://www.cuckoosandbox.org
+# See the file 'docs/LICENSE' for copying permission.
+
+import os
+import json
+import urllib
+import urllib2
+
+from lib.dragon.common.objects import File
+from lib.dragon.common.abstracts import Processing
+from lib.dragon.common.exceptions import CuckooProcessingError
+
+VIRUSTOTAL_FILE_URL = "https://www.virustotal.com/vtapi/v2/file/report"
+VIRUSTOTAL_URL_URL = "https://www.virustotal.com/vtapi/v2/url/report"
+VIRUSTOTAL_KEY = "a0283a2c3d55728300d064874239b5346fb991317e8449fe43c902879d758088"
+
+class VirusTotal(Processing):
+    """Gets antivirus signatures from VirusTotal.com"""
+
+    def run(self):
+        """Runs VirusTotal processing
+        @return: full VirusTotal report.
+        """
+        self.key = "virustotal"
+        virustotal = []
+
+        if not VIRUSTOTAL_KEY:
+            raise CuckooProcessingError("VirusTotal API key not configured, skip")
+
+        if self.task["category"] == "file":
+            if not os.path.exists(self.file_path):
+                raise CuckooProcessingError("File {0} not found, skip".format(self.file_path))
+
+            resource = File(self.file_path).get_md5()
+            url = VIRUSTOTAL_FILE_URL
+        elif self.task["category"] == "url":
+            resource = self.task.target
+            url = VIRUSTOTAL_URL_URL
+
+        data = urllib.urlencode({"resource" : resource, "apikey" : VIRUSTOTAL_KEY})
+
+        try:
+            request = urllib2.Request(url, data)
+            response = urllib2.urlopen(request)
+            response_data = response.read()
+        except urllib2.URLError as e:
+            raise CuckooProcessingError("Unable to establish connection to VirusTotal: {0}".format(e))
+        except urllib2.HTTPError as e:
+            raise CuckooProcessingError("Unable to perform HTTP request to VirusTotal (http code={0})".format(e.code))
+
+        try:
+            virustotal = json.loads(response_data)
+        except ValueError as e:
+            raise CuckooProcessingError("Unable to convert response to JSON: {0}".format(e))
+
+        return virustotal
