@@ -1,0 +1,50 @@
+<section id="apt">
+    <div class="alert alert-error">
+        <h4>APT INTELLIGENCE &amp; MISSION CONTROL</h4>
+        <p>
+            This is a proprietary system to automatically identify, attribute, geolocate and disrupt highly sophisticated APT units that are targeting your oganization. This is achieved through a mixture of innovative algorythms, intelligence gathering techniques and secret sauce.<br />
+            Our <i>Chase Down Those Fuckers&#0153;</i> system was able to identify the group behind this campaign, the perpetrator of this attack and the secret hideout where your adversaries are currently operating from. All in a matter of seconds.
+        </p>
+        <table class="table table-nonfluid">
+            <thead>
+                <tr>
+                    <th>Hacker Picture</th>
+                    <th>Hacker Profile</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><img width="200" height="200" src="data:image/png;base64,{{results.apt.pic}}" /></td>
+                    <td>
+                        <b>Alias</b>: {{results.apt.alias}}<br />
+                        <b>Age</b>: {{results.apt.age}}<br />
+                        <b>Nationality</b>: {{results.apt.nationality}}<br />
+                        <b>Unit</b>: {{results.apt.unit}}<br />
+                        <b>Expertise</b>: {{results.apt.expertise}}<br />
+                        <b>Targets</b>: {{results.apt.targets}}<br />
+
+                        <p style="margin-top: 20px;">
+                            <button class="btn btn-danger">Authorize <b>Counter-Intelligence</b> Operation</button> 
+                            <button class="btn btn-danger">Authorize <b>Cyber-Warfare</b> Engagement</button> 
+                            <button class="btn btn-link">Let Him Live</button>
+                        </p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <table class="table table-nonfluid">
+            <thead>
+                <tr>
+                    <th>Identified Secret Hideout</th>
+                    <th>Satellite Spying</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><img src="http://maps.googleapis.com/maps/api/staticmap?center={{results.apt.loc}}&zoom=3&size=600x300&maptype=roadmap&markers=color:red%7Clabel:S%7C{{results.apt.loc}}&sensor=false" /></td>
+                    <td><img src="http://maps.googleapis.com/maps/api/staticmap?center={{results.apt.loc}}&zoom=16&size=600x300&maptype=satellite&sensor=false" /></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>

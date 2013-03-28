@@ -4,6 +4,7 @@
 
 import os
 import base64
+import random
 
 from lib.dragon.common.constants import CUCKOO_ROOT
 from lib.dragon.common.abstracts import Report
@@ -16,6 +17,49 @@ try:
     HAVE_JINJA2 = True
 except ImportError:
     HAVE_JINJA2 = False
+
+HAX0RS = [
+    {
+        "pic" : base64.b64encode(open(os.path.join(CUCKOO_ROOT, "data", "apt", "haxors", "1.jpg"), "rb").read()),
+        "alias" : "C4$|-|_Y0",
+        "age" : "Too old",
+        "nationality" : "Chinese",
+        "expertise" : "",
+        "targets" : "",
+        "unit" : "PLA Catering Unit",
+        "loc" : "29.351944,89.311389",
+    },
+    {
+        "pic" : base64.b64encode(open(os.path.join(CUCKOO_ROOT, "data", "apt", "haxors", "2.jpg"), "rb").read()),
+        "alias" : "TattooBoy",
+        "age" : "17",
+        "nationality" : "Chinese",
+        "expertise" : "",
+        "targets" : "",
+        "unit" : "PLA Soccer Club",
+        "loc" : "39.7175,113.142778",
+    },
+    {
+        "pic" : base64.b64encode(open(os.path.join(CUCKOO_ROOT, "data", "apt", "haxors", "3.jpg"), "rb").read()),
+        "alias" : "PedoBear",
+        "age" : "40+",
+        "nationality" : "Chinese",
+        "expertise" : "0day exploits, espionage, counter-espionage, counter-counter-espionage, counter-counter-counter-espionage, lame malware, loving animals",
+        "targets" : "Naval industry, defense industry, pharmaceutical industry, media industry, manufacturing industry, metal industry, death-metal industry, aviation industry, music industry, movie industry, technology industry, your industry",
+        "unit" : "PLA Toilet Cleaning Unit",
+        "loc" : "24.978611,113.420833",
+    },
+    {
+        "pic" : base64.b64encode(open(os.path.join(CUCKOO_ROOT, "data", "apt", "haxors", "4.jpg"), "rb").read()),
+        "alias" : "PeaceOnTheStr33ts",
+        "age" : "15",
+        "nationality" : "Chinese",
+        "expertise" : "",
+        "targets" : "",
+        "unit" : "PLA Catering Unit",
+        "loc" : "34.559444,105.86",
+    },
+]
 
 class ReportHTML(Report):
     """Stores report in HTML format."""
@@ -52,6 +96,10 @@ class ReportHTML(Report):
             results["screenshots"] = shots
         else:
             results["screenshots"] = []
+
+
+        #results["apt"] = random.choice(HAX0RS)
+        results["apt"] = HAX0RS[2]
 
         env = Environment(autoescape=True)
         env.loader = FileSystemLoader(os.path.join(CUCKOO_ROOT, "data", "html"))
