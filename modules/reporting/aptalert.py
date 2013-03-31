@@ -27,7 +27,6 @@ class APTAlert(Report):
         dialog.move(movex, movey)
 
         label = gtk.Label()
-        #msg = random.choice(APT_MESSAGES)
         msg = "APT ALERT!"
         label.set_markup('<span size="x-large" weight="heavy">{0}</span>'.format(msg));
         dialog.vbox.pack_start(label)
@@ -46,4 +45,4 @@ class APTAlert(Report):
 
         dialog.connect("response", got_response)
         dialog.show()
-        #timercb()
+        timercb()
