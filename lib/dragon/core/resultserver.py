@@ -19,8 +19,11 @@ from lib.dragon.common.netlog import NetlogParser
 
 log = logging.getLogger(__name__)
 
+BUFSIZE = 16 * 1024
+
 class Disconnect(Exception):
     pass
+
 
 class Resultserver(SocketServer.ThreadingTCPServer, object):
     """Result server. Singleton!
@@ -89,6 +92,7 @@ class Resultserver(SocketServer.ThreadingTCPServer, object):
         storagepath = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(task.id))
         return storagepath
 
+
 class Resulthandler(SocketServer.BaseRequestHandler):
     """Result handler.
 
@@ -96,7 +100,9 @@ class Resulthandler(SocketServer.BaseRequestHandler):
     """
 
     def setup(self):
+        self.logfd = None
         self.rawlogfd = None
+        self.protocol = None
         self.startbuf = ''
         self.end_request = Event()
         self.done_event = Event()
@@ -119,9 +125,35 @@ class Resulthandler(SocketServer.BaseRequestHandler):
             if not tmp: raise Disconnect()
             buf += tmp
 
-        if self.rawlogfd: self.rawlogfd.write(buf)
-        else: self.startbuf += buf
+        if isinstance(self.protocol, NetlogParser):
+            if self.rawlogfd: self.rawlogfd.write(buf)
+            else: self.startbuf += buf
         return buf
+
+    def read_any(self):
+        if not self.wait_sock_or_end(): raise Disconnect()
+        tmp = self.request.recv(BUFSIZE)
+        if not tmp: raise Disconnect()
+        return tmp
+
+    def read_newline(self):
+        buf = ''
+        while not "\n" in buf:
+            buf += self.read(1)
+        return buf
+
+    def negotiate_protocol(self):
+        # read until newline
+        buf = self.read_newline()
+
+        if "NETLOG" in buf:
+            self.protocol = NetlogParser(self)
+        elif "FILE" in buf:
+            self.protocol = FileUpload(self)
+        elif "LOG" in buf:
+            self.protocol = LogHandler(self)
+        else:
+            raise CuckooOperationalError("Netlog failure, unknown protocol requested.")
 
     def handle(self):
         ip, port = self.client_address
@@ -130,19 +162,24 @@ class Resulthandler(SocketServer.BaseRequestHandler):
 
         self.storagepath = self.server.build_storage_path(ip)
         if not self.storagepath: return
-        self.logspath = self.create_logs_folder()
-        if not self.logspath: return
 
-        # netlog protocol parser
-        nlp = NetlogParser(self)
+        # create all missing folders for this analysis
+        self.create_folders()
+
+        # initialize the protocol handler class for this connection
+        self.negotiate_protocol()
+
         try:
             while True:
-                r = nlp.read_next_message()
+                r = self.protocol.read_next_message()
                 if not r: break
         except Disconnect:
             pass
         except socket.error, e:
             log.debug("socket.error: {0}".format(e))
+
+        try: self.protocol.close()
+        except: pass
 
         if self.logfd: self.logfd.close()
         if self.rawlogfd: self.rawlogfd.close()
@@ -150,8 +187,13 @@ class Resulthandler(SocketServer.BaseRequestHandler):
 
     def log_process(self, context, timestring, pid, ppid, modulepath, procname):
         log.debug("New process (pid={0}, ppid={1}, name={2}, path={3})".format(pid, ppid, procname, modulepath))
-        self.logfd = open(os.path.join(self.logspath, str(pid) + '.csv'), 'w')
-        self.rawlogfd = open(os.path.join(self.logspath, str(pid) + '.raw'), 'w')
+
+        # CSV format files are optional
+        if self.server.cfg.resultserver.store_csvs:
+            self.logfd = open(os.path.join(self.storagepath, "logs", str(pid) + '.csv'), 'w')
+
+        # Netlog raw format is mandatory (postprocessing)
+        self.rawlogfd = open(os.path.join(self.storagepath, "logs", str(pid) + '.raw'), 'w')
         self.rawlogfd.write(self.startbuf)
         self.pid, self.ppid, self.procname = pid, ppid, procname
 
@@ -159,6 +201,9 @@ class Resulthandler(SocketServer.BaseRequestHandler):
         log.debug("New thread (tid={0}, pid={1})".format(context[3], pid))
 
     def log_call(self, context, apiname, modulename, arguments):
+        if not self.rawlogfd:
+            raise CuckooOperationalError("Netlog failure, call before process.")
+
         apiindex, status, returnval, tid, timediff = context
 
         #log.debug('log_call> tid:{0} apiname:{1}'.format(tid, apiname))
@@ -168,17 +213,81 @@ class Resulthandler(SocketServer.BaseRequestHandler):
 
         argumentstrings = ['{0}->{1}'.format(argname, r) for argname, r in arguments]
 
-        print >>self.logfd, ','.join('"{0}"'.format(i) for i in [timestring, self.pid,
-            self.procname, tid, self.ppid, modulename, apiname, status, returnval,
-            ] + argumentstrings)
+        if self.logfd:
+            print >>self.logfd, ','.join('"{0}"'.format(i) for i in [timestring, self.pid,
+                self.procname, tid, self.ppid, modulename, apiname, status, returnval,
+                ] + argumentstrings)
 
-    def create_logs_folder(self):
-        logspath = os.path.join(self.storagepath, "logs")
+    def create_folders(self):
+        folders = ["shots", "files", "logs"]
 
-        try:
-            create_folder(folder=logspath)
-        except CuckooOperationalError:
-            log.error("Unable to create logs folder %s" % logspath)
-            return False
+        for folder in folders:
+            try:
+                create_folder(self.storagepath, folder=folder)
+            except CuckooOperationalError:
+                log.error("Unable to create folder %s" % folder)
+                return False
 
-        return logspath
+
+class FileUpload(object):
+    def __init__(self, handler):
+        self.handler = handler
+        self.upload_max_size = self.handler.server.cfg.resultserver.upload_max_size
+        self.storagepath = self.handler.storagepath
+
+    def read_next_message(self):
+        # read until newline for file path
+        # e.g. shots/0001.jpg or files/9498687557/libcurl-4.dll.bin
+
+        buf = self.handler.read_newline().strip().replace('\\', '/')
+        log.debug("File upload request for {0}".format(buf))
+
+        if '../' in buf:
+            raise CuckooOperationalError("FileUpload failure, banned path.")
+
+        dir_part, filename = os.path.split(buf)
+
+        if dir_part:
+            try: create_folder(self.storagepath, dir_part)
+            except CuckooOperationalError:
+                log.error("Unable to create folder %s" % folder)
+                return False
+
+        file_path = os.path.join(self.storagepath, buf.strip())
+
+        fd = open(file_path, "wb")
+        chunk = self.handler.read_any()
+        while chunk:
+            fd.write(chunk)
+
+            if fd.tell() >= self.upload_max_size:
+                fd.write('... (truncated)')
+                break
+
+            chunk = self.handler.read_any()
+
+        log.debug("Uploaded file length: {0}".format(fd.tell()))
+        fd.close()
+
+
+class LogHandler(object):
+    def __init__(self, handler):
+        self.handler = handler
+        self.logpath = os.path.join(handler.storagepath, "analysis.log")
+        self.fd = self._open()
+        log.debug("LogHandler for live analysis.log initialized.")
+
+    def read_next_message(self):
+        buf = self.handler.read_newline()
+        if not buf: return False
+        self.fd.write(buf)
+        self.fd.flush()
+        return True
+
+    def close(self):
+        self.fd.close()
+
+    def _open(self):
+        if os.path.exists(self.logpath):
+            return open(self.logpath, "a")
+        return open(self.logpath, "w")
