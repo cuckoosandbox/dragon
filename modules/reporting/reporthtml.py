@@ -25,8 +25,8 @@ HAX0RS = [
         "name" : "Ouyang Yang",
         "age" : "Too old",
         "nationality" : "Chinese",
-        "expertise" : "",
-        "targets" : "",
+        "expertise" : "XOR crypters",
+        "targets" : "Financial industry",
         "unit" : "PLA Catering Unit",
         "loc" : "29.351944,89.311389",
     },
@@ -36,8 +36,8 @@ HAX0RS = [
         "name" : "Shangguan Quan",
         "age" : "17",
         "nationality" : "Chinese",
-        "expertise" : "",
-        "targets" : "",
+        "expertise" : "sqlmap",
+        "targets" : "Food industry",
         "unit" : "PLA Soccer Team",
         "loc" : "39.7175,113.142778",
     },
@@ -47,7 +47,7 @@ HAX0RS = [
         "name" : "Xiahou Qie",
         "age" : "40+",
         "nationality" : "Chinese",
-        "expertise" : "Exploiting Java, espionage, counter-espionage, counter-counter-espionage, counter-counter-counter-espionage, loving animals",
+        "expertise" : "Espionage, counter-espionage, counter-counter-espionage, counter-counter-counter-espionage",
         "targets" : "Every industry, especially yours",
         "unit" : "PLA 34th Hackers Battalion",
         "loc" : "24.978611,113.420833",
@@ -58,8 +58,8 @@ HAX0RS = [
         "name" : "Yuwen Bai",
         "age" : "15",
         "nationality" : "Chinese",
-        "expertise" : "",
-        "targets" : "",
+        "expertise" : "Unicode, copy source code, exploiting XSS",
+        "targets" : "IT industry",
         "unit" : "PLA Chess Club",
         "loc" : "34.559444,105.86",
     },
@@ -102,8 +102,7 @@ class ReportHTML(Report):
             results["screenshots"] = []
 
 
-        #results["apt"] = random.choice(HAX0RS)
-        results["apt"] = HAX0RS[2]
+        results["apt"] = random.choice(HAX0RS)
 
         env = Environment(autoescape=True)
         env.loader = FileSystemLoader(os.path.join(CUCKOO_ROOT, "data", "html"))
